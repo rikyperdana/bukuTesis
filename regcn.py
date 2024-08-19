@@ -66,21 +66,21 @@ class REGCN(nn.Module): # adalah kelas utama model ReGCN
         self.bias = nn.Parameter(torch.FloatTensor(4 * opt.hidden_dim))
 
     # Fungsi untuk menghitung bobot posisi berdasarkan lokasi aspek dalam teks
-    def position_weight(self, x, aspect_double_idx, text_len, aspect_len):
+    def position_weight(self, x, relationX_double_idx, text_len, relationX_len):
         batch_size = x.shape[0]
         seq_len = x.shape[1]
-        aspect_double_idx = aspect_double_idx.cpu().numpy()
+        relationX_double_idx = relationX_double_idx.cpu().numpy()
         text_len = text_len.cpu().numpy()
-        aspect_len = aspect_len.cpu().numpy()
+        relationX_len = relationX_len.cpu().numpy()
         weight = [[] for i in range(batch_size)]
         for i in range(batch_size):
-            context_len = text_len[i] - aspect_len[i]
-            for j in range(aspect_double_idx[i,0]):
-                weight[i].append(1-(aspect_double_idx[i,0]-j)/context_len)
-            for j in range(aspect_double_idx[i,0], aspect_double_idx[i,1]+1):
+            context_len = text_len[i] - relationX_len[i]
+            for j in range(relationX_double_idx[i,0]):
+                weight[i].append(1-(relationX_double_idx[i,0]-j)/context_len)
+            for j in range(relationX_double_idx[i,0], relationX_double_idx[i,1]+1):
                 weight[i].append(0)
-            for j in range(aspect_double_idx[i,1]+1, text_len[i]):
-                weight[i].append(1-(j-aspect_double_idx[i,1])/context_len)
+            for j in range(relationX_double_idx[i,1]+1, text_len[i]):
+                weight[i].append(1-(j-relationX_double_idx[i,1])/context_len)
             for j in range(text_len[i], seq_len):
                 weight[i].append(0)
         weight = torch.tensor(weight).unsqueeze(2).to(self.opt.device)
@@ -95,16 +95,16 @@ class REGCN(nn.Module): # adalah kelas utama model ReGCN
         return x,y
 
     # Fungsi untuk me-mask representasi teks di luar rentang aspek
-    def mask(self, x, aspect_double_idx):
+    def mask(self, x, relationX_double_idx):
         batch_size, seq_len = x.shape[0], x.shape[1]
-        aspect_double_idx = aspect_double_idx.cpu().numpy()
+        relationX_double_idx = relationX_double_idx.cpu().numpy()
         mask = [[] for i in range(batch_size)]
         for i in range(batch_size):
-            for j in range(aspect_double_idx[i,0]):
+            for j in range(relationX_double_idx[i,0]):
                 mask[i].append(0)
-            for j in range(aspect_double_idx[i,0], aspect_double_idx[i,1]+1):
+            for j in range(relationX_double_idx[i,0], relationX_double_idx[i,1]+1):
                 mask[i].append(1)
-            for j in range(aspect_double_idx[i,1]+1, seq_len):
+            for j in range(relationX_double_idx[i,1]+1, seq_len):
                 mask[i].append(0)
         mask = torch.tensor(mask).unsqueeze(2).float().to(self.opt.device)
         return mask*x
@@ -112,11 +112,11 @@ class REGCN(nn.Module): # adalah kelas utama model ReGCN
     # Fungsi utama model yang mengambil masukan dan melakukan prediksi sentimen
     def forward(self, inputs):
         # inputs: Masukan model, termasuk indeks teks, indeks aspek, dan matriks adjacency
-        text_indices, aspect_indices, left_indices, pmi_adj, cos_adj, dep_adj = inputs
-        aspect_len = torch.sum(aspect_indices != 0, dim=-1) # Panjang aspek dan bagian kiri teks
+        text_indices, relationX_indices, left_indices, pmi_adj, cos_adj, dep_adj = inputs
+        relationX_len = torch.sum(relationX_indices != 0, dim=-1) # Panjang aspek dan bagian kiri teks
         left_len = torch.sum(left_indices != 0, dim=-1)
         # Indeks awal dan akhir aspek
-        aspect_double_idx = torch.cat([left_len.unsqueeze(1), (left_len+aspect_len-1).unsqueeze(1)], dim=1)
+        relationX_double_idx = torch.cat([left_len.unsqueeze(1), (left_len+relationX_len-1).unsqueeze(1)], dim=1)
         if not self.usebert:
             text_len = torch.sum(text_indices != 0, dim=-1)
             text = self.embed(text_indices) # Hasil embedding teks
@@ -137,20 +137,20 @@ class REGCN(nn.Module): # adalah kelas utama model ReGCN
         for i in range(num_layer):
             if i == 0:
                 # Hasil konvolusi grafis menggunakan matriks adjacency PMI dan cosine
-                x_pmi_1 = F.relu(self.gc1(self.position_weight(text_out, aspect_double_idx, text_len, aspect_len), pmi_adj))
-                x_pmi_2 = F.relu(self.gc2(self.position_weight(x_pmi_1, aspect_double_idx, text_len, aspect_len), pmi_adj))
-                x_cos_1 = F.relu(self.gc3(self.position_weight(text_out, aspect_double_idx, text_len, aspect_len),cos_adj))
-                x_cos_2 = F.relu(self.gc4(self.position_weight(x_cos_1, aspect_double_idx, text_len, aspect_len),cos_adj))
+                x_pmi_1 = F.relu(self.gc1(self.position_weight(text_out, relationX_double_idx, text_len, relationX_len), pmi_adj))
+                x_pmi_2 = F.relu(self.gc2(self.position_weight(x_pmi_1, relationX_double_idx, text_len, relationX_len), pmi_adj))
+                x_cos_1 = F.relu(self.gc3(self.position_weight(text_out, relationX_double_idx, text_len, relationX_len),cos_adj))
+                x_cos_2 = F.relu(self.gc4(self.position_weight(x_cos_1, relationX_double_idx, text_len, relationX_len),cos_adj))
                 x_s = torch.cat([(x_pmi_2) ,  (x_cos_2)],dim=2)
             else:
-                x_d_pmi = F.relu(self.gc1(self.position_weight(x_pmi, aspect_double_idx, text_len, aspect_len), dep_adj))
-                x_p_d = F.relu(self.gc2(self.position_weight(x_d_pmi, aspect_double_idx, text_len, aspect_len), dep_adj))
-                x_d_cos = F.relu(self.gc3(self.position_weight(x_cos, aspect_double_idx, text_len, aspect_len), dep_adj))
-                x_c_d = F.relu(self.gc4(self.position_weight(x_d_cos, aspect_double_idx, text_len, aspect_len), dep_adj))
+                x_d_pmi = F.relu(self.gc1(self.position_weight(x_pmi, relationX_double_idx, text_len, relationX_len), dep_adj))
+                x_p_d = F.relu(self.gc2(self.position_weight(x_d_pmi, relationX_double_idx, text_len, relationX_len), dep_adj))
+                x_d_cos = F.relu(self.gc3(self.position_weight(x_cos, relationX_double_idx, text_len, relationX_len), dep_adj))
+                x_c_d = F.relu(self.gc4(self.position_weight(x_d_cos, relationX_double_idx, text_len, relationX_len), dep_adj))
                 f_n = torch.cat([(0.3*x_pmi_2 + x_p_d) ,  (0.3*x_cos_2 + x_c_d)],dim=2)
 
         # Hasil akhir dari layer konvolusi grafis yang telah di-mask dan di-attention
-        x = self.mask(f_n, aspect_double_idx)
+        x = self.mask(f_n, relationX_double_idx)
         alpha_mat = torch.matmul(x, f0.transpose(1, 2))
         alpha = F.softmax(alpha_mat.sum(1, keepdim=True), dim=2)
         x = torch.matmul(alpha, f0).squeeze(1)  #(batch,hidden_dim)

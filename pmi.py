@@ -102,8 +102,8 @@ def build_pmi(dataset, model, laptop=False):
     lines = fin.readlines() # Baca file teks mentah.
     for i in range(0, len(lines)-3, 3): 
         text_left, _, text_right = [s.lower().strip() for s in lines[i].partition("$T$")]
-        aspect = lines[i + 1].lower().strip()
-        sentence = text_left + ' ' + aspect + ' ' + text_right
+        relationX = lines[i + 1].lower().strip()
+        sentence = text_left + ' ' + relationX + ' ' + text_right
         sentences.append(sentence)
 
     sentences = sorted(set(sentences),key=sentences.index) # # Buat daftar kalimat dari file.
@@ -125,8 +125,8 @@ def build_pmig(dataset, model,):
     lines = fin.readlines() # Baca file teks mentah.
     for i in range(0, len(lines)-3, 3): # Iterasi melalui setiap kalimat dalam file:
         text_left, _, text_right = [s.lower().strip() for s in lines[i].partition("$T$")]
-        aspect = lines[i + 1].lower().strip()
-        sentence = text_left + ' ' + aspect + ' ' + text_right
+        relationX = lines[i + 1].lower().strip()
+        sentence = text_left + ' ' + relationX + ' ' + text_right
         #stop_words = stopword()
         sentence = ' '.join([s for s in sentence.split()])
         print(sentence) # Panggil fungsi pmi_matrix untuk membangun matriks PMI untuk kalimat tersebut.

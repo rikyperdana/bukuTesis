@@ -71,8 +71,8 @@ print(f'Total Baris: {len(lines)}')
 for i in range(0, len(lines)-3, 3):
     print('Baris ke: ', i)
     text_left, _, text_right = [s.lower().strip() for s in lines[i].partition("$T$")]
-    aspect = lines[i + 1].lower().strip()
-    sentence = text_left + ' ' + aspect + ' ' + text_right
+    relationX = lines[i + 1].lower().strip()
+    sentence = text_left + ' ' + relationX + ' ' + text_right
 
     # Jika GloVe digunakan, kode ini mengubah kalimat menjadi urutan token numerik dan menggunakan objek embed untuk mendapatkan embedding setiap token.
     if not usebert:

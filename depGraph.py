@@ -62,10 +62,10 @@ def process(filename):
         # Mengambil aspek dari baris berikutnya (baris kedua dalam entri teks)
         # dan mengubahnya menjadi huruf kecil dan menghapus spasi kosong
         # Kemudian, mengubah semua teks menjadi huruf kecil dan menghapus spasi kosong
-        aspect = lines[i + 1].lower().strip()
+        relationX = lines[i + 1].lower().strip()
         # Membangun matriks adjacency ketergantungan untuk teks yang digabungkan,
         # yang terdiri dari teks kiri, aspek, dan teks kanan
-        adj_matrix = dependency_adj_matrix(text_left + ' ' + aspect + ' ' + text_right)
+        adj_matrix = dependency_adj_matrix(text_left + ' ' + relationX + ' ' + text_right)
         # Menyimpan matriks adjacency dalam dictionary idx2graph, dengan indeks i sebagai kuncinya
         idx2graph[i] = adj_matrix
     # Menyimpan dictionary idx2graph sebagai file biner menggunakan library pickle
